@@ -45,6 +45,6 @@ static void __exit fan_module_exit(void) { pr_info("end module job\n"); }
 module_init(fan_module_init);
 module_exit(fan_module_exit);
 
-MODULE_LICENSE("MIT");
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rinat");
 MODULE_DESCRIPTION("The module for apple mac-book fan");
