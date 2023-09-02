@@ -75,6 +75,24 @@ struct apple_fan_data {
   const char *gfx_fan_desc;
 };
 
+/*
+ *  GLOBALS.........
+ * */
+
+static struct apple_fan_data apple_data = {
+    NULL, {-1, -1}, {false, false}, false,    false, 255, 255,
+    10,   10,       "CPU Fan",      "GFX Fan"};
+
+const static char *fan_mode_manual_string = "manual";
+const static char *fan_mode_auto_string = "auto";
+
+// params struct used frequently for acpi-call-construction
+static struct acpi_object_list params;
+// force loading i.e., skip device existance check
+static short force_load = false;
+// allow checking but override rpm check
+static short force_rpm_override = false;
+
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
 
