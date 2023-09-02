@@ -228,7 +228,7 @@ static umode_t apple_hwmon_sysfs_is_visible(struct kobject *kobj,
                                             struct attribute *attr, int idx);
 
 // initialization of hwmon interface
-static int apple_fan_hwmon_init(struct asus_fan *asus);
+static int apple_fan_hwmon_init(struct apple_fan *asus);
 
 // remove "apple_fan" subfolder from /sys/devices/platform
 static void apple_fan_sysfs_exit(struct platform_device *device);
@@ -240,10 +240,10 @@ static int apple_fan_probe(struct platform_device *pdev);
 static int apple_fan_remove(struct platform_device *device);
 
 // prepare platform device and let it create
-int __init_or_module apple_fan_register_driver(struct asus_fan_driver *driver);
+int __init_or_module apple_fan_register_driver(struct apple_fan_driver *driver);
 
 // remove the driver
-void apple_fan_unregister_driver(struct asus_fan_driver *driver);
+void apple_fan_unregister_driver(struct apple_fan_driver *driver);
 
 // housekeeping (module) stuff...
 static void __exit fan_exit(void);
@@ -326,6 +326,47 @@ static int fan_set_speed(int fan, int speed) {
   // acpi call
   return acpi_evaluate_integer(NULL, "\\_SB.PCI0.LPCB.EC0.SFNV", &params,
                                &value);
+}
+
+static int __fan_rpm(int fan) {
+  struct acpi_object_list params;
+  union acpi_object args[1];
+  unsigned long long value;
+  acpi_status ret;
+
+  dbg_msg("fan-id: %d | get RPM", fan);
+
+  // fan does not report during manual speed setting - so fake it!
+  if (apple_data.fan_manual_mode[fan]) {
+    value = apple_data.fan_states[fan] * apple_data.fan_states[fan] * 1000 /
+                -16054 +
+            apple_data.fan_states[fan] * 32648 / 1000 - 365;
+
+    dbg_msg("|--> get RPM for manual mode, calculated: %d", value);
+
+    if (value > 10000)
+      return 0;
+  } else {
+
+    dbg_msg("|--> get RPM using acpi");
+
+    // getting current fan 'speed' as 'state',
+    params.count = ARRAY_SIZE(args);
+    params.pointer = args;
+    // Args:
+    // - get speed from the fan with index 'fan'
+    args[0].type = ACPI_TYPE_INTEGER;
+    args[0].integer.value = fan;
+
+    dbg_msg("|--> evaluate acpi request: \\_SB.PCI0.LPCB.EC0.TACH");
+    // acpi call
+    ret = acpi_evaluate_integer(NULL, "\\_SB.PCI0.LPCB.EC0.TACH", &params,
+                                &value);
+    dbg_msg("|--> acpi request returned: %s", acpi_format_exception(ret));
+    if (ret != AE_OK)
+      return -1;
+  }
+  return (int)value;
 }
 
 static int __init fan_module_init(void) {
