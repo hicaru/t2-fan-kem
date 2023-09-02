@@ -288,6 +288,46 @@ static int __fan_set_cur_state(int fan, unsigned long state) {
   return fan_set_speed(fan, state);
 }
 
+static int __fan_get_cur_control_state(int fan, int *state) {
+  dbg_msg("fan-id: %d | get control state", fan);
+  *state = apple_data.fan_manual_mode[fan];
+  return 0;
+}
+
+static int __fan_set_cur_control_state(int fan, int state) {
+  dbg_msg("fan-id: %d | set control state: %d", fan, state);
+  if (state == 0) {
+    return fan_set_auto();
+  }
+  return 0;
+}
+
+static int fan_set_speed(int fan, int speed) {
+  union acpi_object args[2];
+  unsigned long long value;
+
+  dbg_msg("fan-id: %d | set speed: %d", fan, speed);
+
+  // set speed to 'speed' for given 'fan'-index
+  // -> automatically switch to manual mode!
+  params.count = ARRAY_SIZE(args);
+  params.pointer = args;
+  // Args:
+  // fan index
+  // - add '1' to index as '0' has a special meaning (auto-mode)
+  args[0].type = ACPI_TYPE_INTEGER;
+  args[0].integer.value = fan + 1;
+  // target fan speed
+  // - between 0x00 and MAX (0 - MAX)
+  //   - 'MAX' is usually 0xFF (255)
+  //   - should be getable with fan_get_max_speed()
+  args[1].type = ACPI_TYPE_INTEGER;
+  args[1].integer.value = speed;
+  // acpi call
+  return acpi_evaluate_integer(NULL, "\\_SB.PCI0.LPCB.EC0.SFNV", &params,
+                               &value);
+}
+
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
 
