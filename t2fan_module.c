@@ -353,7 +353,7 @@ static int __fan_rpm(int fan) {
   } else {
     dbg_msg("|--> get RPM using acpi");
 
-    const char *acpi_paths[] = {"\_SB_.PCI0.LPCB.SMC_"};
+    const char *acpi_paths[] = {"\\_SB_.PCI0.LPCB.SMC_"};
     size_t acpi_path_length = sizeof(acpi_paths) / sizeof(acpi_paths[0]);
     // getting current fan 'speed' as 'state',
     params.count = ARRAY_SIZE(args);
