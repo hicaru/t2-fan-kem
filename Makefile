@@ -1,5 +1,5 @@
 
-MODULE_NAME := t2_fan 
+MODULE_NAME := module
 
 SRC_DIR := $(PWD)
 
