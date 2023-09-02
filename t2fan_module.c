@@ -10,6 +10,13 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
 
+// -------- DEFINES / MACROS -----------
+
+#define to_platform_driver(drv)                                                \
+  (container_of((drv), struct platform_driver, driver))
+#define to_apple_fan_driver(pdrv)                                              \
+  (container_of((pdrv), struct apple_fan_driver, platform_driver))
+
 #define DRIVER_NAME "apple_fan"
 #define apple_FAN_VERSION "#MODULE_VERSION#"
 
@@ -736,6 +743,60 @@ static int apple_fan_hwmon_init(struct apple_fan *apple) {
     return PTR_ERR(apple->hwmon_dev);
   }
 
+  return 0;
+}
+
+static void apple_fan_sysfs_exit(struct platform_device *device) {
+  dbg_msg("remove hwmon device");
+  sysfs_remove_group(&device->dev.kobj, &platform_attribute_group);
+}
+
+static int apple_fan_probe(struct platform_device *pdev) {
+  struct platform_driver *pdrv = to_platform_driver(pdev->dev.driver);
+  struct apple_fan_driver *wdrv = to_apple_fan_driver(pdrv);
+
+  struct apple_fan *apple;
+  int err = 0;
+
+  dbg_msg("probe for device");
+
+  apple = kzalloc(sizeof(struct apple_fan), GFP_KERNEL);
+  if (!apple)
+    return -ENOMEM;
+
+  apple->driver = wdrv;
+  apple->hwmon_dev = NULL;
+  apple->platform_device = pdev;
+
+  // set apple-dev as member into global data struct
+  apple_data.apple_fan_obj = apple;
+
+  wdrv->platform_device = pdev;
+  platform_set_drvdata(apple->platform_device, apple);
+
+  sysfs_create_group(&apple->platform_device->dev.kobj,
+                     &platform_attribute_group);
+
+  err = apple_fan_hwmon_init(apple);
+  if (err)
+    goto fail_hwmon;
+
+  return 0;
+
+fail_hwmon:
+  apple_fan_sysfs_exit(apple->platform_device);
+  kfree(apple);
+  return err;
+}
+
+static int apple_fan_remove(struct platform_device *device) {
+  struct apple_fan *apple;
+
+  dbg_msg("remove apple_fan");
+
+  apple = platform_get_drvdata(device);
+  apple_fan_sysfs_exit(apple->platform_device);
+  kfree(apple);
   return 0;
 }
 
