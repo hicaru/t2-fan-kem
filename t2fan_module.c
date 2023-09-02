@@ -22,12 +22,10 @@
 
 #define TEMP1_CRIT 105
 #define TEMP1_LABEL "gfx_temp"
-#define DEBUG true
 
 #define dbg_msg(fmt, ...)                                                      \
   do {                                                                         \
-    if (DEBUG)                                                                 \
-      printk(KERN_INFO "apple-fan (debug) - " fmt "\n", ##__VA_ARGS__);        \
+    printk(KERN_INFO "apple-fan (debug) - " fmt "\n", ##__VA_ARGS__);          \
   } while (0)
 
 #define info_msg(title, fmt, ...)                                              \
