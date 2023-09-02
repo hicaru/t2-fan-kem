@@ -837,96 +837,95 @@ static int __init fan_module_init(void) {
   acpi_status ret;
   int rpm;
 
-  dbg_msg("apple fan driver starting initialization...");
-  info_msg("init", "dmi sys info: '%s'", dmi_get_system_info(DMI_SYS_VENDOR));
-  info_msg("init", "dmi product: '%s'", dmi_get_system_info(DMI_PRODUCT_NAME));
-  dbg_msg("dmi chassis type: '%s'", dmi_get_system_info(DMI_CHASSIS_TYPE));
+  info_msg("init", "apple fan driver starting initialization...");
+  // info_msg("init", "dmi sys info: '%s'",
+  // dmi_get_system_info(DMI_SYS_VENDOR)); info_msg("init", "dmi product: '%s'",
+  // dmi_get_system_info(DMI_PRODUCT_NAME)); _msg("dmi chassis type: '%s'",
+  // dmi_get_system_info(DMI_CHASSIS_TYPE));
 
-  // load without identification
-  if (force_load) {
-    apple_data.has_gfx_fan = true;
-    info_msg("init", "forced loading of module: USE WITH CARE");
-    // identify system/model/platform
-  } else if (!strcmp(dmi_get_system_info(DMI_SYS_VENDOR), "Apple INC.")) {
-    // step by step probe available functionalities and insert into attrib grp
-    size_t temp = AE_OK;
-    // USE this for idx in hwmon_attrs size_t idx = 0;
-    // try to get RPM for first fan
-    rpm = __fan_rpm(0);
+  printk(KERN_INFO "dmi sys info: '%s'", dmi_get_system_info(DMI_SYS_VENDOR));
+  printk(KERN_INFO "dmi product: '%s'", dmi_get_system_info(DMI_PRODUCT_NAME));
+  printk(KERN_INFO "dmi chassis type: '%s'",
+         dmi_get_system_info(DMI_CHASSIS_TYPE));
 
-    if (force_rpm_override) {
-      info_msg("init", "overriding rpm check: USE WITH CARE");
-    }
+  size_t temp = AE_OK;
 
-    if (rpm == -1 && !force_rpm_override) {
-      apple_data.has_fan = false;
-      err_msg("init", "fan-id: 1 | failed to get rpm");
-    } else {
-      apple_data.has_fan = true;
-      info_msg("init", "fan-id: 1 | success getting rpm");
-      hwmon_attrs[0] = &dev_attr_pwm1.attr;
-      hwmon_attrs[1] = &dev_attr_pwm1_enable.attr;
-      hwmon_attrs[2] = &dev_attr_fan1_min.attr;
-      hwmon_attrs[3] = &dev_attr_fan1_input.attr;
-      hwmon_attrs[5] = &dev_attr_fan1_max.attr;
-      hwmon_attrs[14] = &dev_attr_fan1_mode.attr;
-      hwmon_attrs[15] = &dev_attr_fan1_speed.attr;
-    }
-    // try to get RPM for second fan
-    rpm = __fan_rpm(1);
-    if (rpm == -1 && !force_rpm_override) {
-      err_msg("init", "fan-id: 2 | failed to get rpm");
-      apple_data.has_gfx_fan = false;
-    } else {
-      info_msg("init", "fan-id: 2 | success getting rpm");
-      apple_data.has_gfx_fan = true;
-      hwmon_attrs[6] = &dev_attr_pwm2.attr;
-      hwmon_attrs[7] = &dev_attr_pwm2_enable.attr;
-      hwmon_attrs[8] = &dev_attr_fan2_min.attr;
-      hwmon_attrs[9] = &dev_attr_fan2_input.attr;
-      hwmon_attrs[16] = &dev_attr_fan2_mode.attr;
-      hwmon_attrs[17] = &dev_attr_fan2_speed.attr;
-      hwmon_attrs[18] = &dev_attr_fan2_max.attr;
-    }
+  // USE this for idx in hwmon_attrs size_t idx = 0;
+  // try to get RPM for first fan
+  rpm = __fan_rpm(0);
 
-    // try to read temprature
-    // size_t temp = temp1_input(apple_data.hwmon_dev, ); // @TODO
-    if (temp != AE_OK) {
-      err_msg("init", "temperature read probe failed");
-    } else {
-      info_msg("init", "temp-id: 1 | success getting temp");
-      hwmon_attrs[11] = &dev_attr_temp1_input.attr;
-      hwmon_attrs[12] = &dev_attr_temp1_label.attr;
-      hwmon_attrs[13] = &dev_attr_temp1_crit.attr;
-    }
-
-    // set labels for existing fans
-    if (apple_data.has_fan)
-      hwmon_attrs[4] = &dev_attr_fan1_label.attr;
-    if (apple_data.has_gfx_fan)
-      hwmon_attrs[10] = &dev_attr_fan2_label.attr;
-
-    // check if reseting fan speeds works
-    ret = fan_set_max_speed(apple_data.max_fan_speed_default, false);
-    if (ret != AE_OK) {
-      err_msg("init", "set max speed to: '%d' failed! errcode: %s",
-              apple_data.max_fan_speed_default, acpi_format_exception(ret));
-      return -ENODEV;
-    }
-
-    dbg_msg("fan_set_max_speed() call succeeded, ret: %s",
-            acpi_format_exception(ret));
-
-    // force sane enviroment / init with automatic fan controlling
-    if ((ret = fan_set_auto()) != AE_OK) {
-      err_msg("init", "set auto-mode speed to active, failed! errcode: %s",
-              acpi_format_exception(ret));
-      return -ENODEV;
-    }
-
-    dbg_msg("fan_set_auto() call succeeded, ret: %s",
-            acpi_format_exception(ret));
+  if (force_rpm_override) {
+    info_msg("init", "overriding rpm check: USE WITH CARE");
   }
+
+  if (rpm == -1 && !force_rpm_override) {
+    apple_data.has_fan = false;
+    err_msg("init", "fan-id: 1 | failed to get rpm");
+  } else {
+    apple_data.has_fan = true;
+    info_msg("init", "fan-id: 1 | success getting rpm");
+    hwmon_attrs[0] = &dev_attr_pwm1.attr;
+    hwmon_attrs[1] = &dev_attr_pwm1_enable.attr;
+    hwmon_attrs[2] = &dev_attr_fan1_min.attr;
+    hwmon_attrs[3] = &dev_attr_fan1_input.attr;
+    hwmon_attrs[5] = &dev_attr_fan1_max.attr;
+    hwmon_attrs[14] = &dev_attr_fan1_mode.attr;
+    hwmon_attrs[15] = &dev_attr_fan1_speed.attr;
+  }
+  // try to get RPM for second fan
+  rpm = __fan_rpm(1);
+  if (rpm == -1 && !force_rpm_override) {
+    err_msg("init", "fan-id: 2 | failed to get rpm");
+    apple_data.has_gfx_fan = false;
+  } else {
+    info_msg("init", "fan-id: 2 | success getting rpm");
+    apple_data.has_gfx_fan = true;
+    hwmon_attrs[6] = &dev_attr_pwm2.attr;
+    hwmon_attrs[7] = &dev_attr_pwm2_enable.attr;
+    hwmon_attrs[8] = &dev_attr_fan2_min.attr;
+    hwmon_attrs[9] = &dev_attr_fan2_input.attr;
+    hwmon_attrs[16] = &dev_attr_fan2_mode.attr;
+    hwmon_attrs[17] = &dev_attr_fan2_speed.attr;
+    hwmon_attrs[18] = &dev_attr_fan2_max.attr;
+  }
+
+  // try to read temprature
+  // size_t temp = temp1_input(apple_data.hwmon_dev, ); // @TODO
+  if (temp != AE_OK) {
+    err_msg("init", "temperature read probe failed");
+  } else {
+    info_msg("init", "temp-id: 1 | success getting temp");
+    dbg_msg("init", "temp: %d", temp);
+    hwmon_attrs[11] = &dev_attr_temp1_input.attr;
+    hwmon_attrs[12] = &dev_attr_temp1_label.attr;
+    hwmon_attrs[13] = &dev_attr_temp1_crit.attr;
+  }
+
+  // set labels for existing fans
+  if (apple_data.has_fan)
+    hwmon_attrs[4] = &dev_attr_fan1_label.attr;
+  if (apple_data.has_gfx_fan)
+    hwmon_attrs[10] = &dev_attr_fan2_label.attr;
+
+  // check if reseting fan speeds works
+  ret = fan_set_max_speed(apple_data.max_fan_speed_default, false);
+  if (ret != AE_OK) {
+    err_msg("init", "set max speed to: '%d' failed! errcode: %s",
+            apple_data.max_fan_speed_default, acpi_format_exception(ret));
+    return -ENODEV;
+  }
+
+  dbg_msg("fan_set_max_speed() call succeeded, ret: %s",
+          acpi_format_exception(ret));
+
+  // force sane enviroment / init with automatic fan controlling
+  if ((ret = fan_set_auto()) != AE_OK) {
+    err_msg("init", "set auto-mode speed to active, failed! errcode: %s",
+            acpi_format_exception(ret));
+    return -ENODEV;
+  }
+
+  dbg_msg("fan_set_auto() call succeeded, ret: %s", acpi_format_exception(ret));
 
   ret = apple_fan_register_driver(&apple_fan_driver);
   if (ret != AE_OK) {
