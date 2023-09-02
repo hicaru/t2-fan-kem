@@ -10,6 +10,13 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
 
+#define DRIVER_NAME "apple_fan"
+#define ASUS_FAN_VERSION "#MODULE_VERSION#"
+
+#define TEMP1_CRIT 105
+#define TEMP1_LABEL "gfx_temp"
+#define DEBUG true
+
 #define dbg_msg(fmt, ...)                                                      \
   do {                                                                         \
     if (DEBUG)                                                                 \
@@ -92,6 +99,157 @@ static struct acpi_object_list params;
 static short force_load = false;
 // allow checking but override rpm check
 static short force_rpm_override = false;
+
+// housekeeping structs
+static struct apple_fan_driver apple_fan_driver = {
+    .name = DRIVER_NAME,
+    .owner = THIS_MODULE,
+};
+
+bool used;
+
+static struct attribute *platform_attributes[] = {NULL};
+static struct attribute_group platform_attribute_group = {
+    .attrs = platform_attributes};
+
+// hidden fan api funcs used for both (wrap into them)
+static int __fan_get_cur_state(int fan, unsigned long *state);
+static int __fan_set_cur_state(int fan, unsigned long state);
+
+// get current mode (auto, manual, perhaps auto mode of module in future)
+static int __fan_get_cur_control_state(int fan, int *state);
+// switch between modes (auto, manual, perhaps auto mode of module in future)
+static int __fan_set_cur_control_state(int fan, int state);
+
+// regular fan api funcs
+static ssize_t fan_get_cur_state(struct device *dev,
+                                 struct device_attribute *attr, char *buf);
+static ssize_t fan_set_cur_state(struct device *dev,
+                                 struct device_attribute *attr, const char *buf,
+                                 size_t count);
+
+// gfx fan api funcs
+static ssize_t fan_get_cur_state_gfx(struct device *dev,
+                                     struct device_attribute *attr, char *buf);
+static ssize_t fan_set_cur_state_gfx(struct device *dev,
+                                     struct device_attribute *attr,
+                                     const char *buf, size_t count);
+
+// regular fan api funcs
+static ssize_t fan_get_cur_control_state(struct device *dev,
+                                         struct device_attribute *attr,
+                                         char *buf);
+static ssize_t fan_set_cur_control_state(struct device *dev,
+                                         struct device_attribute *attr,
+                                         const char *buf, size_t count);
+
+// gfx fan api funcs
+static ssize_t fan_get_cur_control_state_gfx(struct device *dev,
+                                             struct device_attribute *attr,
+                                             char *buf);
+static ssize_t fan_set_cur_control_state_gfx(struct device *dev,
+                                             struct device_attribute *attr,
+                                             const char *buf, size_t count);
+
+static ssize_t _fan_set_mode(int fan, const char *buf, size_t count);
+
+// gfx fan api funcs
+static ssize_t fan1_get_mode(struct device *dev, struct device_attribute *attr,
+                             char *buf);
+static ssize_t fan1_set_mode(struct device *dev, struct device_attribute *attr,
+                             const char *buf, size_t count);
+
+// gfx fan api funcs
+static ssize_t fan2_get_mode(struct device *dev, struct device_attribute *attr,
+                             char *buf);
+static ssize_t fan2_set_mode(struct device *dev, struct device_attribute *attr,
+                             const char *buf, size_t count);
+
+// generic fan func (no sense as long as auto-mode is bound to both or none of
+// the fans...
+// - force 'reset' of max-speed (if reset == true) and change to auto-mode
+static int fan_set_max_speed(unsigned long state, bool reset);
+// acpi-readout
+static int fan_get_max_speed(unsigned long *state);
+
+// set fan(s) to automatic mode
+static int fan_set_auto(void);
+
+// set fan with index 'fan' to 'speed'
+// - includes manual mode activation
+static int fan_set_speed(int fan, int speed);
+
+// reports current speed of the fan (unit:RPM)
+static int __fan_rpm(int fan);
+
+// Writes RPMs of fan0 (CPU fan) to buf => needed for hwmon device
+static ssize_t fan_rpm(struct device *dev, struct device_attribute *attr,
+                       char *buf);
+
+// Writes RPMs of fan1 (GPU fan) to buf => needed for hwmon device
+static ssize_t fan_rpm_gfx(struct device *dev, struct device_attribute *attr,
+                           char *buf);
+// Writes Label of fan0 (CPU fan) to buf => needed for hwmon device
+static ssize_t fan_label(struct device *dev, struct device_attribute *attr,
+                         char *buf);
+
+// Writes Label of fan1 (GPU fan) to buf => needed for hwmon device
+static ssize_t fan_label_gfx(struct device *dev, struct device_attribute *attr,
+                             char *buf);
+// Writes Minimal speed of fan0 (CPU fan) to buf => needed for hwmon device
+static ssize_t fan_min(struct device *dev, struct device_attribute *attr,
+                       char *buf);
+
+// Writes Minimal speed of fan1 (GPU fan) to buf => needed for hwmon device
+static ssize_t fan_min_gfx(struct device *dev, struct device_attribute *attr,
+                           char *buf);
+
+// sets maximal speed for auto and manual mode => needed for hwmon device
+static ssize_t set_max_speed(struct device *dev, struct device_attribute *attr,
+                             const char *buf, size_t count);
+
+// writes maximal speed for auto and manual mode to buf => needed for hwmon
+// device
+static ssize_t get_max_speed(struct device *dev, struct device_attribute *attr,
+                             char *buf);
+
+// GFX temperature
+static ssize_t temp1_input(struct device *dev, struct device_attribute *attr,
+                           char *buf);
+// GFX label
+static ssize_t temp1_crit(struct device *dev, struct device_attribute *attr,
+                          char *buf);
+// GFX crit
+static ssize_t temp1_label(struct device *dev, struct device_attribute *attr,
+                           char *buf);
+
+// is the hwmon interface visible?
+static umode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
+                                           struct attribute *attr, int idx);
+
+// initialization of hwmon interface
+static int asus_fan_hwmon_init(struct asus_fan *asus);
+
+// remove "asus_fan" subfolder from /sys/devices/platform
+static void asus_fan_sysfs_exit(struct platform_device *device);
+
+// set up platform device and call hwmon init
+static int asus_fan_probe(struct platform_device *pdev);
+
+// do anything needed to remove platform device
+static int asus_fan_remove(struct platform_device *device);
+
+// prepare platform device and let it create
+int __init_or_module asus_fan_register_driver(struct asus_fan_driver *driver);
+
+// remove the driver
+void asus_fan_unregister_driver(struct asus_fan_driver *driver);
+
+// housekeeping (module) stuff...
+static void __exit fan_exit(void);
+static int __init fan_init(void);
+
+// ----------------------IMPLEMENTATIONS-------------------------- //
 
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
