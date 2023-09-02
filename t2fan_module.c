@@ -228,7 +228,7 @@ static umode_t apple_hwmon_sysfs_is_visible(struct kobject *kobj,
                                             struct attribute *attr, int idx);
 
 // initialization of hwmon interface
-static int apple_fan_hwmon_init(struct apple_fan *asus);
+static int apple_fan_hwmon_init(struct apple_fan *apple);
 
 // remove "apple_fan" subfolder from /sys/devices/platform
 static void apple_fan_sysfs_exit(struct platform_device *device);
@@ -369,6 +369,136 @@ static int __fan_rpm(int fan) {
   return (int)value;
 }
 
+static ssize_t fan_rpm(struct device *dev, struct device_attribute *attr,
+                       char *buf) {
+  return sprintf(buf, "%d\n", __fan_rpm(0));
+}
+static ssize_t fan_rpm_gfx(struct device *dev, struct device_attribute *attr,
+                           char *buf) {
+  return sprintf(buf, "%d\n", __fan_rpm(1));
+}
+
+static ssize_t fan1_get_mode(struct device *dev, struct device_attribute *attr,
+                             char *buf) {
+  /* = false;
+  unsigned long state = 0;
+  __fan_get_cur_state(0, &state);*/
+  if (apple_data.fan_manual_mode[0])
+    return sprintf(buf, "%s\n", fan_mode_manual_string);
+  else
+    return sprintf(buf, "%s\n", fan_mode_auto_string);
+}
+static ssize_t fan2_get_mode(struct device *dev, struct device_attribute *attr,
+                             char *buf) {
+  if (apple_data.fan_manual_mode[1])
+    return sprintf(buf, "%s\n", fan_mode_manual_string);
+  else
+    return sprintf(buf, "%s\n", fan_mode_auto_string);
+}
+
+static ssize_t fan1_set_mode(struct device *dev, struct device_attribute *attr,
+                             const char *buf, size_t count) {
+  return _fan_set_mode(0, buf, count);
+}
+
+static ssize_t fan2_set_mode(struct device *dev, struct device_attribute *attr,
+                             const char *buf, size_t count) {
+  return _fan_set_mode(1, buf, count);
+}
+
+static ssize_t _fan_set_mode(int fan, const char *buf, size_t count) {
+  int state;
+  kstrtouint(buf, 10, &state);
+
+  if (strncmp(buf, fan_mode_auto_string, strlen(fan_mode_auto_string)) == 0 ||
+      strncmp(buf, "0", 1) == 0) {
+    fan_set_auto();
+  } else if (strncmp(buf, fan_mode_manual_string,
+                     strlen(fan_mode_manual_string)) == 0)
+    __fan_set_cur_state(0, (255 - apple_data.fan_minimum) >> 1);
+  else
+    err_msg("set mode",
+            "fan id: %d | setting mode to '%s', use 'auto' or 'manual'",
+            fan + 1, buf);
+
+  return count;
+}
+
+static ssize_t fan_get_cur_state(struct device *dev,
+                                 struct device_attribute *attr, char *buf) {
+  unsigned long state = 0;
+  __fan_get_cur_state(0, &state);
+  return sprintf(buf, "%lu\n", state);
+}
+
+static ssize_t fan_get_cur_state_gfx(struct device *dev,
+                                     struct device_attribute *attr, char *buf) {
+  unsigned long state = 0;
+  __fan_get_cur_state(1, &state);
+  return sprintf(buf, "%lu\n", state);
+}
+
+static ssize_t fan_set_cur_state_gfx(struct device *dev,
+                                     struct device_attribute *attr,
+                                     const char *buf, size_t count) {
+  int state;
+  kstrtouint(buf, 10, &state);
+  __fan_set_cur_state(1, state);
+  return count;
+}
+
+static ssize_t fan_set_cur_state(struct device *dev,
+                                 struct device_attribute *attr, const char *buf,
+                                 size_t count) {
+  int state;
+  kstrtouint(buf, 10, &state);
+  __fan_set_cur_state(0, state);
+  return count;
+}
+
+static ssize_t fan_get_cur_control_state(struct device *dev,
+                                         struct device_attribute *attr,
+                                         char *buf) {
+  int state = 0;
+  __fan_get_cur_control_state(0, &state);
+  return sprintf(buf, "%d\n", state);
+}
+
+static ssize_t fan_get_cur_control_state_gfx(struct device *dev,
+                                             struct device_attribute *attr,
+                                             char *buf) {
+  int state = 0;
+  __fan_get_cur_control_state(1, &state);
+  return sprintf(buf, "%d\n", state);
+}
+
+static ssize_t fan_set_cur_control_state_gfx(struct device *dev,
+                                             struct device_attribute *attr,
+                                             const char *buf, size_t count) {
+  int state;
+  kstrtouint(buf, 10, &state);
+  __fan_set_cur_control_state(1, state);
+  return count;
+}
+
+static ssize_t fan_set_cur_control_state(struct device *dev,
+                                         struct device_attribute *attr,
+                                         const char *buf, size_t count) {
+  int state;
+  kstrtouint(buf, 10, &state);
+  __fan_set_cur_control_state(0, state);
+  return count;
+}
+
+// TODO: Reading the correct max fan speed does not work!
+static int fan_get_max_speed(unsigned long *state) {
+
+  dbg_msg("fan-id: (both) | get max speed");
+  *state = apple_data.max_fan_speed_setting;
+  return 0;
+}
+
+//// INIT MODULE /////
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
 
