@@ -353,6 +353,8 @@ static int __fan_rpm(int fan) {
   } else {
     dbg_msg("|--> get RPM using acpi");
 
+    const char *acpi_paths[] = {"\_SB_.PCI0.LPCB.SMC_"};
+    size_t acpi_path_length = sizeof(acpi_paths) / sizeof(acpi_paths[0]);
     // getting current fan 'speed' as 'state',
     params.count = ARRAY_SIZE(args);
     params.pointer = args;
@@ -361,11 +363,15 @@ static int __fan_rpm(int fan) {
     args[0].type = ACPI_TYPE_INTEGER;
     args[0].integer.value = fan;
 
-    dbg_msg("|--> evaluate acpi request: \\_SB.PCI0.LPCB.EC0.TACH");
-    // acpi call
-    ret = acpi_evaluate_integer(NULL, "\\_SB.PCI0.LPCB.EC0.TACH", &params,
-                                &value);
-    dbg_msg("|--> acpi request returned: %s", acpi_format_exception(ret));
+    for (int i = 0; i < acpi_path_length; i++) {
+      char *path = acpi_paths[i];
+
+      dbg_msg("|--> evaluate acpi request: %s", path);
+      // acpi call
+      ret = acpi_evaluate_integer(NULL, path, &params, &value);
+      dbg_msg("|--> acpi request returned: %s", acpi_format_exception(ret));
+    }
+
     if (ret != AE_OK)
       return -1;
   }
