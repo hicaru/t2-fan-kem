@@ -11,7 +11,7 @@
 #include <linux/hwmon.h>
 
 #define DRIVER_NAME "apple_fan"
-#define ASUS_FAN_VERSION "#MODULE_VERSION#"
+#define apple_FAN_VERSION "#MODULE_VERSION#"
 
 #define TEMP1_CRIT 105
 #define TEMP1_LABEL "gfx_temp"
@@ -20,22 +20,22 @@
 #define dbg_msg(fmt, ...)                                                      \
   do {                                                                         \
     if (DEBUG)                                                                 \
-      printk(KERN_INFO "asus-fan (debug) - " fmt "\n", ##__VA_ARGS__);         \
+      printk(KERN_INFO "apple-fan (debug) - " fmt "\n", ##__VA_ARGS__);        \
   } while (0)
 
 #define info_msg(title, fmt, ...)                                              \
   do {                                                                         \
-    printk(KERN_INFO "asus-fan (" title ") - " fmt "\n", ##__VA_ARGS__);       \
+    printk(KERN_INFO "apple-fan (" title ") - " fmt "\n", ##__VA_ARGS__);      \
   } while (0)
 
 #define err_msg(title, fmt, ...)                                               \
   do {                                                                         \
-    printk(KERN_ERR "asus-fan (" title ") - " fmt "\n", ##__VA_ARGS__);        \
+    printk(KERN_ERR "apple-fan (" title ") - " fmt "\n", ##__VA_ARGS__);       \
   } while (0)
 
 #define warn_msg(title, fmt, ...)                                              \
   do {                                                                         \
-    printk(KERN_WARNING "asus-fan (" title ") - " fmt "\n", ##__VA_ARGS__);    \
+    printk(KERN_WARNING "apple-fan (" title ") - " fmt "\n", ##__VA_ARGS__);   \
   } while (0)
 
 struct apple_fan_driver {
@@ -224,26 +224,26 @@ static ssize_t temp1_label(struct device *dev, struct device_attribute *attr,
                            char *buf);
 
 // is the hwmon interface visible?
-static umode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
-                                           struct attribute *attr, int idx);
+static umode_t apple_hwmon_sysfs_is_visible(struct kobject *kobj,
+                                            struct attribute *attr, int idx);
 
 // initialization of hwmon interface
-static int asus_fan_hwmon_init(struct asus_fan *asus);
+static int apple_fan_hwmon_init(struct asus_fan *asus);
 
-// remove "asus_fan" subfolder from /sys/devices/platform
-static void asus_fan_sysfs_exit(struct platform_device *device);
+// remove "apple_fan" subfolder from /sys/devices/platform
+static void apple_fan_sysfs_exit(struct platform_device *device);
 
 // set up platform device and call hwmon init
-static int asus_fan_probe(struct platform_device *pdev);
+static int apple_fan_probe(struct platform_device *pdev);
 
 // do anything needed to remove platform device
-static int asus_fan_remove(struct platform_device *device);
+static int apple_fan_remove(struct platform_device *device);
 
 // prepare platform device and let it create
-int __init_or_module asus_fan_register_driver(struct asus_fan_driver *driver);
+int __init_or_module apple_fan_register_driver(struct asus_fan_driver *driver);
 
 // remove the driver
-void asus_fan_unregister_driver(struct asus_fan_driver *driver);
+void apple_fan_unregister_driver(struct asus_fan_driver *driver);
 
 // housekeeping (module) stuff...
 static void __exit fan_exit(void);
