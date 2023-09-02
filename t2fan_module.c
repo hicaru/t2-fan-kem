@@ -1,41 +1,42 @@
 
-#include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/uaccess.h>
 
-#include <linux/hwmon-sysfs.h>
-#include <linux/hwmon.h>
-#include <linux/thermal.h>
+static int cpu_info_print(void) {
+  unsigned int cpu = 0;
+  struct cpuinfo_x86 *c;
 
-static struct hrtimer temperature_timer;
-static struct thermal_zone_device *thermal_zone;
+  for_each_online_cpu(cpu) {
+    const char *vendor = NULL;
+    c = &cpu_data(cpu);
+    if (c->x86_vendor < X86_VENDOR_NUM) {
+      vendor = "Unknown";
+    } else {
+      if (c->cpuid_level >= 0)
+        vendor = c->x86_vendor_id;
+    }
 
-static int log_temperature(void) {
-  struct device *hwmon_dev;
-  struct device_attribute *attr;
-  struct sensor_device_attribute *sensor_attr;
-  struct hwmon_chip_info *chip_info;
-  struct device *dev;
-  int temp;
+    if (vendor && !strstr(c->x86_model_id, vendor))
+      pr_cont("%s ", vendor);
 
-  hwmon_dev = hwmon_device_register(NULL);
-  if (IS_ERR(hwmon_dev)) {
-    printk("Failed to register hwmon device\n");
-    return PTR_ERR(hwmon_dev);
+    if (c->x86_model_id[0])
+      pr_cont("%s", c->x86_model_id);
+    else
+      pr_cont("%d86", c->x86);
+
+    pr_cont(" (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
+
+    if (c->x86_stepping || c->cpuid_level >= 0)
+      pr_cont(", stepping: 0x%x)\n", c->x86_stepping);
+    else
+      pr_cont(")\n");
   }
-
-  printk("Current temperature: %d millidegrees Celsius\n", temp);
-
-  hwmon_device_unregister(hwmon_dev);
   return 0;
 }
 
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
-  log_temperature();
+  cpu_info_print();
 
   return 0;
 }
