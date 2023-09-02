@@ -251,6 +251,30 @@ static int __init fan_init(void);
 
 // ----------------------IMPLEMENTATIONS-------------------------- //
 
+static int __fan_get_cur_state(int fan, unsigned long *state) {
+  // RPM*RPM*0,0000095+0,01028*RPM+26,5
+
+  int rpm = __fan_rpm(fan);
+
+  dbg_msg("fan-id: %d | get RPM", fan);
+
+  if (apple_data.fan_manual_mode[fan]) {
+    *state = apple_data.fan_states[fan];
+  } else {
+    if (rpm == 0) {
+      *state = 0;
+      return 0;
+    }
+
+    *state = rpm * rpm * 100 / 10526316 + rpm * 1000 / 97276 + 26;
+    // ensure state is within a valid range
+    if (*state > 255) {
+      *state = 0;
+    }
+  }
+  return 0;
+}
+
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
 
