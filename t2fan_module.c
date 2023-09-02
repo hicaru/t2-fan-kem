@@ -926,39 +926,40 @@ static int __init fan_module_init(void) {
 
     dbg_msg("fan_set_auto() call succeeded, ret: %s",
             acpi_format_exception(ret));
-
-    ret = apple_fan_register_driver(&apple_fan_driver);
-    if (ret != AE_OK) {
-      err_msg("init", "set max speed to: '%d' failed! errcode: %s",
-              apple_data.max_fan_speed_default, acpi_format_exception(ret));
-      return ret;
-    }
-
-    info_msg("init", "created hwmon device: %s",
-             dev_name(apple_data.apple_fan_obj->hwmon_dev));
-    info_msg("init", "finished init, found %d fan(s) to control",
-             (unsigned int)apple_data.has_gfx_fan + 1);
-
-    return 0;
   }
 
-  void apple_fan_unregister_driver(struct apple_fan_driver * driver) {
-    platform_device_unregister(driver->platform_device);
-    platform_driver_unregister(&driver->platform_driver);
-    used = false;
+  ret = apple_fan_register_driver(&apple_fan_driver);
+  if (ret != AE_OK) {
+    err_msg("init", "set max speed to: '%d' failed! errcode: %s",
+            apple_data.max_fan_speed_default, acpi_format_exception(ret));
+    return ret;
   }
 
-  static void __exit fan_module_exit(void) {
-    fan_set_auto();
-    apple_fan_unregister_driver(&apple_fan_driver);
-    used = false;
+  info_msg("init", "created hwmon device: %s",
+           dev_name(apple_data.apple_fan_obj->hwmon_dev));
+  info_msg("init", "finished init, found %d fan(s) to control",
+           (unsigned int)apple_data.has_gfx_fan + 1);
 
-    info_msg("exit", "module unloaded---cleaning up");
-  }
+  return 0;
+}
 
-  module_init(fan_module_init);
-  module_exit(fan_module_exit);
+void apple_fan_unregister_driver(struct apple_fan_driver *driver) {
+  platform_device_unregister(driver->platform_device);
+  platform_driver_unregister(&driver->platform_driver);
+  used = false;
+}
 
-  MODULE_LICENSE("GPL");
-  MODULE_AUTHOR("Rinat");
-  MODULE_DESCRIPTION("The module for apple mac-book fan");
+static void __exit fan_module_exit(void) {
+  fan_set_auto();
+  apple_fan_unregister_driver(&apple_fan_driver);
+  used = false;
+
+  info_msg("exit", "module unloaded---cleaning up");
+}
+
+module_init(fan_module_init);
+module_exit(fan_module_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Rinat");
+MODULE_DESCRIPTION("The module for apple mac-book fan");
