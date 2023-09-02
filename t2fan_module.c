@@ -603,6 +603,73 @@ static int fan_set_auto() {
   return ret;
 }
 
+static ssize_t fan_label(struct device *dev, struct device_attribute *attr,
+                         char *buf) {
+  return sprintf(buf, "%s\n", apple_data.fan_desc);
+}
+
+static ssize_t fan_label_gfx(struct device *dev, struct device_attribute *attr,
+                             char *buf) {
+  return sprintf(buf, "%s\n", apple_data.gfx_fan_desc);
+}
+static ssize_t fan_min(struct device *dev, struct device_attribute *attr,
+                       char *buf) {
+  return sprintf(buf, "%d\n", apple_data.fan_minimum);
+}
+
+static ssize_t fan_min_gfx(struct device *dev, struct device_attribute *attr,
+                           char *buf) {
+  return sprintf(buf, "%d\n", apple_data.fan_minimum_gfx);
+}
+
+static ssize_t set_max_speed(struct device *dev, struct device_attribute *attr,
+                             const char *buf, size_t count) {
+  int state;
+  bool reset = false;
+  kstrtouint(buf, 10, &state);
+  if (state == 256) {
+    reset = true;
+  }
+  fan_set_max_speed(state, reset);
+  return count;
+}
+
+static ssize_t get_max_speed(struct device *dev, struct device_attribute *attr,
+                             char *buf) {
+  unsigned long state = 0;
+  fan_get_max_speed(&state);
+  return sprintf(buf, "%lu\n", state);
+}
+
+static ssize_t temp1_input(struct device *dev, struct device_attribute *attr,
+                           char *buf) {
+  acpi_status ret;
+  unsigned long long int value;
+  ssize_t size = 0;
+
+  dbg_msg("temp-id: 1 | get (acpi eval)");
+
+  // acpi call
+  ret = acpi_evaluate_integer(NULL, "\\_SB.PCI0.LPCB.EC0.TH1R", NULL, &value);
+  if (ret != AE_OK) {
+    err_msg("read_temp", "failed reading temperature, errcode: %s",
+            acpi_format_exception(ret));
+    return ret;
+  }
+  size = sprintf((char *)&buf, "%llu\n", value);
+  return size;
+}
+
+static ssize_t temp1_label(struct device *dev, struct device_attribute *attr,
+                           char *buf) {
+  return sprintf(buf, "%s\n", TEMP1_LABEL);
+}
+
+static ssize_t temp1_crit(struct device *dev, struct device_attribute *attr,
+                          char *buf) {
+  return sprintf(buf, "%d\n", TEMP1_CRIT);
+}
+
 //// INIT MODULE /////
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
