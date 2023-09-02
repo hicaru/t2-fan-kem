@@ -275,6 +275,19 @@ static int __fan_get_cur_state(int fan, unsigned long *state) {
   return 0;
 }
 
+static int __fan_set_cur_state(int fan, unsigned long state) {
+  dbg_msg("fan-id: %d | set state: %d", fan, state);
+  // catch illegal state set
+  if (state > 255) {
+    warn_msg("set pwm", "illegal value provided: %d ", fan, state);
+    return 1;
+  }
+
+  apple_data.fan_states[fan] = state;
+  apple_data.fan_manual_mode[fan] = true;
+  return fan_set_speed(fan, state);
+}
+
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
 
