@@ -2,46 +2,89 @@
 #include <linux/fs.h>
 #include <linux/module.h>
 
-static int cpu_info_print(void) {
-  unsigned int cpu = 0;
-  struct cpuinfo_x86 *c;
+#include <linux/acpi.h>
+#include <linux/device.h>
+#include <linux/dmi.h>
+#include <linux/platform_device.h>
 
-  for_each_online_cpu(cpu) {
-    const char *vendor = NULL;
-    c = &cpu_data(cpu);
-    if (c->x86_vendor < X86_VENDOR_NUM) {
-      vendor = "Unknown";
-    } else {
-      if (c->cpuid_level >= 0)
-        vendor = c->x86_vendor_id;
-    }
+#include <linux/hwmon-sysfs.h>
+#include <linux/hwmon.h>
 
-    if (vendor && !strstr(c->x86_model_id, vendor))
-      pr_cont("%s ", vendor);
+#define dbg_msg(fmt, ...)                                                      \
+  do {                                                                         \
+    if (DEBUG)                                                                 \
+      printk(KERN_INFO "asus-fan (debug) - " fmt "\n", ##__VA_ARGS__);         \
+  } while (0)
 
-    if (c->x86_model_id[0])
-      pr_cont("%s", c->x86_model_id);
-    else
-      pr_cont("%d86", c->x86);
+#define info_msg(title, fmt, ...)                                              \
+  do {                                                                         \
+    printk(KERN_INFO "asus-fan (" title ") - " fmt "\n", ##__VA_ARGS__);       \
+  } while (0)
 
-    pr_cont(" (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
+#define err_msg(title, fmt, ...)                                               \
+  do {                                                                         \
+    printk(KERN_ERR "asus-fan (" title ") - " fmt "\n", ##__VA_ARGS__);        \
+  } while (0)
 
-    if (c->x86_stepping || c->cpuid_level >= 0)
-      pr_cont(", stepping: 0x%x)\n", c->x86_stepping);
-    else
-      pr_cont(")\n");
-  }
-  return 0;
-}
+#define warn_msg(title, fmt, ...)                                              \
+  do {                                                                         \
+    printk(KERN_WARNING "asus-fan (" title ") - " fmt "\n", ##__VA_ARGS__);    \
+  } while (0)
+
+struct apple_fan_driver {
+  const char *name;
+  struct module *owner;
+
+  int (*probe)(struct platform_device *device);
+
+  struct platform_driver platform_driver;
+  struct platform_device *platform_device;
+};
+
+struct apple_fan {
+  struct platform_device *platform_device;
+
+  struct apple_fan_driver *driver;
+  struct apple_fan_driver *driver_gfx;
+
+  struct device *hwmon_dev;
+};
+
+struct apple_fan_data {
+  struct apple_fan *apple_fan_obj;
+
+  // 'fan_states' save last (manually) set fan state/speed
+  int fan_states[2];
+  // 'fan_manual_mode' keeps whether this fan is manually controlled
+  bool fan_manual_mode[2];
+  // 'true' - if first fan is available
+  bool has_fan;
+  // 'true' - if second fan is available
+  bool has_gfx_fan;
+  // max fan speed default
+  int max_fan_speed_default;
+  // ... user-defined max value
+  int max_fan_speed_setting;
+  // minimum allowed (set) speed for fan(s)
+  int fan_minimum;
+  // this speed will be reported as the minimal speed for the fans
+  int fan_minimum_gfx;
+  // regular fan name
+  const char *fan_desc;
+  // gfx-card fan name
+  const char *gfx_fan_desc;
+};
 
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
-  cpu_info_print();
 
   return 0;
 }
 
-static void __exit fan_module_exit(void) { pr_info("end module job\n"); }
+static void __exit fan_module_exit(void) {
+  // i2c_unregister_device(client);
+  pr_info("end module job\n");
+}
 
 module_init(fan_module_init);
 module_exit(fan_module_exit);
