@@ -343,16 +343,14 @@ static int __fan_rpm(int fan) {
 
   // fan does not report during manual speed setting - so fake it!
   if (apple_data.fan_manual_mode[fan]) {
-    value = apple_data.fan_states[fan] * apple_data.fan_states[fan] * 1000 /
-                -16054 +
-            apple_data.fan_states[fan] * 32648 / 1000 - 365;
+    value = apple_data.fan_states[fan] * apple_data.fan_states[fan] * 1000 -
+            16054 + apple_data.fan_states[fan] * 32648 / 1000 - 365;
 
     dbg_msg("|--> get RPM for manual mode, calculated: %d", value);
 
     if (value > 10000)
       return 0;
   } else {
-
     dbg_msg("|--> get RPM using acpi");
 
     // getting current fan 'speed' as 'state',
@@ -836,13 +834,18 @@ static int __init fan_module_init(void) {
   const char *vendor = dmi_get_system_info(DMI_SYS_VENDOR);
 
   acpi_status ret;
-  int rpm;
   int is_vendor = strcmp(vendor, "Apple INC.");
 
   dbg_msg("apple fan driver starting initialization...");
   info_msg("init", "dmi sys info venodr: '%s'", vendor);
   info_msg("init", "dmi product: '%s'", dmi_get_system_info(DMI_PRODUCT_NAME));
   dbg_msg("dmi chassis type: '%s'", dmi_get_system_info(DMI_CHASSIS_TYPE));
+
+  size_t temp = AE_OK;
+  int rpm0 = __fan_rpm(0);
+  int rpm1 = __fan_rpm(1);
+
+  dbg_msg("rpm0=%d, rpm1=%d", rpm0, rpm1);
 
   ret = apple_fan_register_driver(&apple_fan_driver);
 
@@ -856,6 +859,9 @@ static int __init fan_module_init(void) {
            dev_name(apple_data.apple_fan_obj->hwmon_dev));
   info_msg("init", "finished init, found %d fan(s) to control",
            (unsigned int)apple_data.has_gfx_fan + 1);
+
+  info_msg("init", "has_gfx_fan=%d, has_fan=%d", apple_data.has_gfx_fan,
+           apple_data.has_fan);
 
   return 0;
 }
