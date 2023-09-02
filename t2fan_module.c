@@ -670,6 +670,75 @@ static ssize_t temp1_crit(struct device *dev, struct device_attribute *attr,
   return sprintf(buf, "%d\n", TEMP1_CRIT);
 }
 
+// -------------------HWMON----------------------------- //
+
+// Makros defining all possible hwmon attributes
+static DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, fan_get_cur_state,
+                   fan_set_cur_state);
+static DEVICE_ATTR(pwm1_enable, S_IWUSR | S_IRUGO, fan_get_cur_control_state,
+                   fan_set_cur_control_state);
+
+static DEVICE_ATTR(fan1_mode, S_IWUSR | S_IRUGO, fan1_get_mode, fan1_set_mode);
+static DEVICE_ATTR(fan1_speed, S_IWUSR | S_IRUGO, fan_get_cur_state,
+                   fan_set_cur_state);
+
+static DEVICE_ATTR(fan1_min, S_IRUGO, fan_min, NULL);
+static DEVICE_ATTR(fan1_input, S_IRUGO, fan_rpm, NULL);
+static DEVICE_ATTR(fan1_label, S_IRUGO, fan_label, NULL);
+
+static DEVICE_ATTR(fan1_max, S_IWUSR | S_IRUGO, get_max_speed, set_max_speed);
+
+// @TODO: remove??? they are obsolete...
+static DEVICE_ATTR(pwm2, S_IWUSR | S_IRUGO, fan_get_cur_state_gfx,
+                   fan_set_cur_state_gfx);
+static DEVICE_ATTR(pwm2_enable, S_IWUSR | S_IRUGO,
+                   fan_get_cur_control_state_gfx,
+                   fan_set_cur_control_state_gfx);
+
+static DEVICE_ATTR(fan2_mode, S_IWUSR | S_IRUGO, fan2_get_mode, fan2_set_mode);
+static DEVICE_ATTR(fan2_speed, S_IWUSR | S_IRUGO, fan_get_cur_state_gfx,
+                   fan_set_cur_state_gfx);
+
+static DEVICE_ATTR(fan2_min, S_IRUGO, fan_min_gfx, NULL);
+static DEVICE_ATTR(fan2_max, S_IWUSR | S_IRUGO, get_max_speed, set_max_speed);
+static DEVICE_ATTR(fan2_input, S_IRUGO, fan_rpm_gfx, NULL);
+static DEVICE_ATTR(fan2_label, S_IRUGO, fan_label_gfx, NULL);
+
+static DEVICE_ATTR(temp1_input, S_IRUGO, temp1_input, NULL);
+static DEVICE_ATTR(temp1_label, S_IRUGO, temp1_label, NULL);
+static DEVICE_ATTR(temp1_crit, S_IRUGO, temp1_crit, NULL);
+
+static struct attribute *hwmon_attrs[] = {NULL, NULL, NULL, NULL, NULL, NULL,
+                                          NULL, NULL, NULL, NULL, NULL, NULL,
+                                          NULL, NULL, NULL, NULL, NULL, NULL,
+
+                                          NULL};
+// by now sysfs is always visible
+static umode_t apple_hwmon_sysfs_is_visible(struct kobject *kobj,
+                                            struct attribute *attr, int idx) {
+  return attr->mode;
+}
+
+static struct attribute_group hwmon_attr_group = {
+    .is_visible = apple_hwmon_sysfs_is_visible, .attrs = hwmon_attrs};
+// will create hwmon_attr_groups (?)
+__ATTRIBUTE_GROUPS(hwmon_attr);
+
+static int apple_fan_hwmon_init(struct apple_fan *apple) {
+
+  dbg_msg("init hwmon device");
+
+  apple->hwmon_dev = hwmon_device_register_with_groups(
+      &apple->platform_device->dev, "apple_fan", apple, hwmon_attr_groups);
+
+  if (IS_ERR(apple->hwmon_dev)) {
+    err_msg("init", "could not register apple hwmon device");
+    return PTR_ERR(apple->hwmon_dev);
+  }
+
+  return 0;
+}
+
 //// INIT MODULE /////
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
