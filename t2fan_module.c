@@ -35,6 +35,7 @@ static int log_temperature(void) {
 
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
+  log_temperature();
 
   return 0;
 }
