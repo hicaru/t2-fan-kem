@@ -498,6 +498,111 @@ static int fan_get_max_speed(unsigned long *state) {
   return 0;
 }
 
+static int fan_set_max_speed(unsigned long state, bool reset) {
+  union acpi_object args[1];
+  unsigned long long value;
+  acpi_status ret;
+  int arg_qmod = 1;
+
+  dbg_msg("fan-id: (both) | set max speed: %d, force reset: %d", state,
+          (unsigned int)reset);
+
+  // if reset is 'true' ignore anything else and reset to
+  // -> auto-mode with max-speed
+  // -> use "SB.ARKD.QMOD" _without_ "SB.QFAN",
+  //    which seems not writeable as expected
+  if (reset) {
+    state = 255;
+    arg_qmod = 2;
+    // Activate the set maximum speed setting
+    // Args:
+    // 0 - just returns
+    // 1 - sets quiet mode to QFAN value
+    // 2 - sets quiet mode to 0xFF (that's the default value)
+    params.count = ARRAY_SIZE(args);
+    params.pointer = args;
+    // pass arg
+    args[0].type = ACPI_TYPE_INTEGER;
+    args[0].integer.value = arg_qmod;
+
+    // acpi call
+    ret = acpi_evaluate_integer(NULL, "\\_SB.ATKD.QMOD", &params, &value);
+    if (ret != AE_OK) {
+      err_msg("set_max_speed",
+              "set max fan speed(s) failed (force reset)! errcode: %s",
+              acpi_format_exception(ret));
+      return ret;
+    }
+
+    // if reset was not forced, set max fan speed to 'state'
+  } else {
+    // is applied automatically on any available fan
+    // - docs say it should affect manual _AND_ automatic mode
+    // Args:
+    // - from 0x00 to 0xFF (0 - 255)
+    params.count = ARRAY_SIZE(args);
+    params.pointer = args;
+    // pass arg
+    args[0].type = ACPI_TYPE_INTEGER;
+    args[0].integer.value = state;
+
+    // acpi call
+    ret = acpi_evaluate_integer(NULL, "\\_SB.PCI0.LPCB.EC0.ST98", &params,
+                                &value);
+    if (ret != AE_OK) {
+      err_msg("set_max_speed",
+              "set max fan speed(s) failed (no reset) errcode: %s",
+              acpi_format_exception(ret));
+
+      return ret;
+    }
+  }
+
+  // keep set max fan speed for the get_max
+  apple_data.max_fan_speed_setting = state;
+
+  return ret;
+}
+
+static int fan_set_auto() {
+  union acpi_object args[2];
+  unsigned long long value;
+  acpi_status ret;
+
+  dbg_msg("fan-id: (both) | set to automatic mode");
+
+  // setting (both) to auto-mode simultanously
+  apple_data.fan_manual_mode[0] = false;
+  apple_data.fan_states[0] = -1;
+  if (apple_data.has_gfx_fan) {
+    apple_data.fan_states[1] = -1;
+    apple_data.fan_manual_mode[1] = false;
+  }
+
+  // acpi call to call auto-mode for all fans!
+  params.count = ARRAY_SIZE(args);
+  params.pointer = args;
+  // special fan-id == 0 must be used
+  args[0].type = ACPI_TYPE_INTEGER;
+  args[0].integer.value = 0;
+  // speed has to be set to zero
+  args[1].type = ACPI_TYPE_INTEGER;
+  args[1].integer.value = 0;
+
+  // acpi call
+  ret =
+      acpi_evaluate_integer(NULL, "\\_SB.PCI0.LPCB.EC0.SFNV", &params, &value);
+  if (ret != AE_OK) {
+    err_msg("set_auto",
+            "failed reseting fan(s) to auto-mode! "
+            "errcode: %s - DANGER! OVERHEAT? DANGER!",
+            acpi_format_exception(ret));
+
+    return ret;
+  }
+  return ret;
+}
+
 //// INIT MODULE /////
 static int __init fan_module_init(void) {
   pr_info("start module job\n");
